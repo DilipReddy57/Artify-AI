@@ -1,0 +1,5 @@
+{
+  "name": "Artify AI",
+  "description": "An AI-powered photo editor that analyzes an image's style and replicates it onto another image using generative AI.",
+  "requestFramePermissions": []
+}
