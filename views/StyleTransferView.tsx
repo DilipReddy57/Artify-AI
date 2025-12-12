@@ -62,7 +62,7 @@ type Action =
     | { type: 'HIDE_MODAL' }
     | { type: 'SET_LAYOUT_MODE'; payload: LayoutMode };
 
-const ALL_SECTIONS: AnalysisSection[] = ['color_grading', 'exposure_and_contrast', 'texture_and_sharpness', 'special_effects', 'lighting'];
+const ALL_SECTIONS: AnalysisSection[] = ['color_grading', 'exposure_and_contrast' | 'texture_and_sharpness' | 'special_effects' | 'lighting'] as any; // Quick fix for TS type inference in map/init
 
 const initialState: State = {
     sourceImage: null,
@@ -71,7 +71,7 @@ const initialState: State = {
     analysis: null,
     conflicts: null,
     editingPlan: null,
-    activeSections: new Set(ALL_SECTIONS),
+    activeSections: new Set(['color_grading', 'exposure_and_contrast', 'texture_and_sharpness', 'special_effects', 'lighting'] as AnalysisSection[]),
     imageDescription: null,
     sourceColorPalette: null,
     useThinkingMode: false,
@@ -276,7 +276,7 @@ export const StyleTransferView: React.FC<{ initialProps: StyleTransferInitialPro
                 try {
                     const detectedConflicts = await detectConflicts(sourceImage.base64, sourceImage.mimeType, targetImage.base64, targetImage.mimeType);
                     
-                    let newActiveSections = new Set(ALL_SECTIONS);
+                    let newActiveSections = new Set(['color_grading', 'exposure_and_contrast', 'texture_and_sharpness', 'special_effects', 'lighting'] as AnalysisSection[]);
                     // Handle adaptive UI based on primary conflict
                     if (detectedConflicts.length > 0) {
                         const primaryConflict = detectedConflicts[0];
@@ -330,11 +330,26 @@ export const StyleTransferView: React.FC<{ initialProps: StyleTransferInitialPro
         
         try {
             const result = await replicateStyle(targetImage.base64, targetImage.mimeType, activeAnalysis, sourceCtx, instructions);
+
+            if (!result.base64 || result.base64.trim() === '') {
+                 throw new Error("Received empty image data from AI.");
+            }
+
             const url = `data:${result.mimeType};base64,${result.base64}`;
             dispatch({ type: 'SET_REPLICATION_RESULT', payload: { url, ...result } });
         } catch (e) {
             console.error(e);
-            const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during style transfer.';
+             let errorMessage = 'An unknown error occurred during style transfer.';
+
+            if (e instanceof Error) {
+                if (e.message.includes('429') || e.message.includes('RESOURCE_EXHAUSTED')) {
+                    errorMessage = "API rate limit exceeded. Please wait a moment and try again.";
+                } else if (e.message.includes('empty image data')) {
+                    errorMessage = "The AI failed to generate a valid image data. Please try again.";
+                } else {
+                     errorMessage = e.message;
+                }
+            }
             dispatch({ type: 'SET_ERROR', payload: errorMessage });
         }
     }, [targetImage, activeSections, editingPlan]);
@@ -357,13 +372,23 @@ export const StyleTransferView: React.FC<{ initialProps: StyleTransferInitialPro
         dispatch({ type: 'START_LOADING', payload: { message: 'Refining image...', stage: 'replication' } });
         try {
             const result = await editTextWithPrompt(imageToEdit.base64, imageToEdit.mimeType, prompt);
+             if (!result.base64 || result.base64.trim() === '') {
+                 throw new Error("Received empty image data from AI.");
+            }
             const url = `data:${result.mimeType};base64,${result.base64}`;
             dispatch({ type: 'ADD_REFINEMENT_RESULT', payload: { url, ...result } });
         } catch (e) {
-            const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred during refinement.';
+             let errorMessage = 'An unknown error occurred during refinement.';
+             if (e instanceof Error) {
+                 if (e.message.includes('empty image data')) {
+                     errorMessage = "The AI failed to generate a valid image data. Please try again.";
+                 } else {
+                     errorMessage = e.message;
+                 }
+             }
             dispatch({ type: 'SET_ERROR', payload: errorMessage });
         }
-    }, [resultHistory, targetImage]);
+    }, [resultHistory, targetImage, finalImage]);
 
 
     const assistantAction = finalImage ? handleRefineWithPrompt : handleGuidedReplicate;

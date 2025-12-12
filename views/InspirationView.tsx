@@ -10,6 +10,7 @@ import { Layers, Palette, Link as LinkIcon } from 'lucide-react';
 import { Accordion, AccordionItem } from '../components/ui/accordion';
 import { StaticBeforeAfter } from '../components/StaticBeforeAfter';
 import { ChatWidget } from '../components/ChatWidget';
+import { LazyImage } from '../components/LazyImage';
 
 // --- Showcase Image Assets (Unsplash sourced for reliability and quality) ---
 const STYLE_TRANSFER_BEFORE_URL = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1200&auto=format&fit=crop'; // Portrait
@@ -93,7 +94,7 @@ const AnalysisVisual = () => {
   return (
     <div className="flex h-full w-full items-center justify-center p-4 gap-4 bg-black">
       <div className="w-1/2 h-full">
-        <img src={ANALYSIS_IMAGE_URL} alt="Building for analysis" className="object-cover h-full w-full rounded-md" />
+        <LazyImage src={ANALYSIS_IMAGE_URL} alt="Building for analysis" className="object-cover h-full w-full rounded-md" />
       </div>
       <div className="w-1/2 h-full bg-card p-3 rounded-md flex flex-col text-left text-sm">
         <h4 className="font-bold text-foreground mb-2">Analysis Result</h4>
@@ -172,7 +173,7 @@ export const InspirationView: React.FC<InspirationViewProps> = ({ onSelectInspir
               title="AI Image Generation"
               description="From photorealistic portraits to abstract concepts, bring any idea to life. Powered by Imagen 2, our generation tool gives you fine-grained control over your creations, turning your text prompts into stunning, high-quality visuals."
             >
-               <img src={AI_GENERATION_URL} alt="AI generated art" className="object-cover w-full h-full" />
+               <LazyImage src={AI_GENERATION_URL} alt="AI generated art" className="object-cover w-full h-full" />
             </FeatureShowcase>
 
             <FeatureShowcase 
@@ -228,7 +229,9 @@ const InspirationGallery: React.FC<{ onSelectInspiration: (inspiration: Inspirat
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12 max-w-7xl mx-auto">
             {inspirationGalleryItems.map(item => (
                 <div key={item.id} className="group relative overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                    <img src={item.imageUrl} alt={item.title} className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="w-full h-48 overflow-hidden bg-muted">
+                        <LazyImage src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    </div>
                     <div className="p-4">
                         <h3 className="font-bold text-foreground">{item.title}</h3>
                         <p className="text-sm text-muted-foreground mt-1 h-20 overflow-hidden">{item.description}</p>

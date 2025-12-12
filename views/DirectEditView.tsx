@@ -47,14 +47,26 @@ export const DirectEditView: React.FC = () => {
             } else {
                 result = await editTextWithPrompt(sourceForEdit.base64, sourceForEdit.mimeType, prompt);
             }
+
+            if (!result.base64 || result.base64.trim() === '') {
+                 throw new Error("Received empty image data from AI.");
+            }
+
             const { base64: imageBase64, mimeType } = result;
             setEditedImage({ url: `data:${mimeType};base64,${imageBase64}`, base64: imageBase64, mimeType });
         } catch (e) {
             console.error(e);
-            const isRateLimitError = String(e).includes('429') || String(e).includes('RESOURCE_EXHAUSTED');
-            const errorMessage = isRateLimitError
-                ? "API rate limit exceeded. Please wait a moment and try again."
-                : "Failed to edit image. Please try again or adjust your prompt.";
+             let errorMessage = "Failed to edit image. Please try again or adjust your prompt.";
+
+            if (e instanceof Error) {
+                if (e.message.includes('429') || e.message.includes('RESOURCE_EXHAUSTED')) {
+                    errorMessage = "API rate limit exceeded. Please wait a moment and try again.";
+                } else if (e.message.includes('empty image data')) {
+                     errorMessage = "The AI failed to generate a valid image data. Please try again.";
+                } else {
+                     errorMessage = e.message;
+                }
+            }
             setError(errorMessage);
         } finally {
             setIsLoading(false);
