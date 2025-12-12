@@ -14,12 +14,20 @@ export const useChat = () => {
 
     useEffect(() => {
         // Initialize the chat session when the hook is first used
-        chatRef.current = startChat();
-        setMessages([{ role: 'model', text: 'Hello! How can I help you today?' }]);
+        try {
+            chatRef.current = startChat();
+            setMessages([{ role: 'model', text: 'Hello! How can I help you today?' }]);
+        } catch (e) {
+            console.warn("Failed to initialize chat:", e);
+            setMessages([{ role: 'model', text: 'Chat functionality is currently unavailable (API Key missing).' }]);
+        }
     }, []);
 
     const sendMessage = async (messageText: string) => {
-        if (!chatRef.current) return;
+        if (!chatRef.current) {
+            setMessages(prev => [...prev, { role: 'user', text: messageText }, { role: 'model', text: 'Chat is not available.' }]);
+            return;
+        }
 
         setIsLoading(true);
         // Add user message to the history immediately

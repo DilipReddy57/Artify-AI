@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Header } from './components/Header';
 import { StyleTransferView } from './views/StyleTransferView';
@@ -8,6 +7,7 @@ import { DirectEditView } from './views/DirectEditView';
 import { InspirationView } from './views/InspirationView';
 import { AnalysisView } from './views/AnalysisView';
 import { ResearchView } from './views/ResearchView';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { Inspiration, ImageGenerationInitialProps, StyleTransferInitialProps } from './types';
 
 export type View = 'style' | 'generate' | 'edit' | 'inspiration' | 'analyze' | 'research';
@@ -53,14 +53,18 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="bg-background text-foreground flex flex-col h-screen font-sans">
-            <Header activeView={activeView} setActiveView={handleSetActiveView} />
-            <div className="flex flex-col flex-grow overflow-hidden">
-                <div className="flex-grow overflow-y-auto min-h-0">
-                    {renderView()}
+        <ErrorBoundary>
+            <div className="bg-background text-foreground flex flex-col h-screen font-sans">
+                <Header activeView={activeView} setActiveView={handleSetActiveView} />
+                <div className="flex flex-col flex-grow overflow-hidden">
+                    <div className="flex-grow overflow-y-auto min-h-0">
+                        <ErrorBoundary>
+                            {renderView()}
+                        </ErrorBoundary>
+                    </div>
                 </div>
             </div>
-        </div>
+        </ErrorBoundary>
     );
 };
 

@@ -48,6 +48,11 @@ export const ImageGenerationView: React.FC<{initialProps: ImageGenerationInitial
         setGeneratedImage(null);
         try {
             const imageBase64 = await generateImage(prompt, aspectRatio);
+
+            if (!imageBase64 || imageBase64.trim() === '') {
+                throw new Error("Received empty image data from AI.");
+            }
+
             const mimeType = 'image/jpeg';
             setGeneratedImage({
                 url: `data:${mimeType};base64,${imageBase64}`,
@@ -56,10 +61,18 @@ export const ImageGenerationView: React.FC<{initialProps: ImageGenerationInitial
             });
         } catch (e) {
             console.error(e);
-            const isRateLimitError = String(e).includes('429') || String(e).includes('RESOURCE_EXHAUSTED');
-            const errorMessage = isRateLimitError
-                ? "API rate limit exceeded. Please wait a moment and try again."
-                : "Failed to generate image. Please try again or refine your prompt.";
+            let errorMessage = "Failed to generate image. Please try again or refine your prompt.";
+
+            if (e instanceof Error) {
+                if (e.message.includes('429') || e.message.includes('RESOURCE_EXHAUSTED')) {
+                    errorMessage = "API rate limit exceeded. Please wait a moment and try again.";
+                } else if (e.message.includes('empty image data')) {
+                    errorMessage = "The AI failed to generate a valid image data. Please try again.";
+                } else {
+                     errorMessage = e.message;
+                }
+            }
+
             setError(errorMessage);
         } finally {
             setIsLoading(false);
