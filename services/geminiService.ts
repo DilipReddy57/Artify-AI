@@ -3,7 +3,21 @@ import { GoogleGenAI, Type, Modality, Chat } from "@google/genai";
 import type { EffectsAnalysisResponse, GroundedSearchResult, ConflictInfo } from '../types';
 import { aiKnowledgeBase } from './aiKnowledgeBase';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+let aiInstance: GoogleGenAI | null = null;
+
+const getAiClient = (): GoogleGenAI => {
+    if (aiInstance) return aiInstance;
+
+    // Note: process.env.API_KEY is replaced by Vite at build time.
+    const apiKey = process.env.API_KEY;
+
+    if (!apiKey) {
+        throw new Error("API Key is missing. Please set GEMINI_API_KEY in your environment or configuration.");
+    }
+
+    aiInstance = new GoogleGenAI({ apiKey });
+    return aiInstance;
+};
 
 const fileToGenerativePart = (base64: string, mimeType: string) => {
   return {
@@ -185,7 +199,7 @@ export const analyzeImageStyle = async (imageBase64: string, mimeType: string, u
     // UPDATED: Use Gemini 3.0 Pro Preview for complex analysis when enabled
     const model = useProModel ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
     
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model,
         contents: { parts: [{ text: aiKnowledgeBase }, { text: prompt }, imagePart] },
         config: {
@@ -204,7 +218,7 @@ export const extractColorPalette = async (imageBase64: string, mimeType: string)
     const imagePart = fileToGenerativePart(imageBase64, mimeType);
     const prompt = "Extract the 5 most dominant and representative colors from this image. Return them as a JSON array of hex code strings. Example: [\"#FFFFFF\", \"#000000\"].";
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [imagePart, { text: prompt }] },
         config: {
@@ -223,7 +237,7 @@ export const describeImageContent = async (imageBase64: string, mimeType: string
     const imagePart = fileToGenerativePart(imageBase64, mimeType);
     const prompt = "Briefly describe the main subject and setting of this image in one or two sentences for a user-friendly display.";
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: { parts: [imagePart, { text: prompt }] }
     });
@@ -266,7 +280,7 @@ export const detectConflicts = async (sourceBase64: string, sourceMimeType: stri
     Your entire response must be a single JSON object matching the provided schema.`;
 
     // UPGRADE: Use Gemini 3.0 Pro for nuanced conflict reasoning
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: {
             parts: [
@@ -372,7 +386,7 @@ export const replicateStyle = async (
     contents.parts.push({ text: "TARGET IMAGE (The image to be edited or have its subject extracted):" });
     contents.parts.push(targetImagePart);
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: contents,
         config: {
@@ -393,7 +407,7 @@ export const editTextWithPrompt = async (imageBase64: string, mimeType: string, 
     const imagePart = fileToGenerativePart(imageBase64, mimeType);
     const promptPart = { text: prompt };
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [imagePart, promptPart] },
         config: {
@@ -431,7 +445,7 @@ Text Prompt: "${prompt}"
 `;
     const promptPart = { text: instructionPrompt };
 
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: { parts: [promptPart, imagePart, maskPart] },
         config: {
@@ -449,7 +463,7 @@ Text Prompt: "${prompt}"
 };
 
 export const generateImage = async (prompt: string, aspectRatio: string): Promise<string> => {
-    const response = await ai.models.generateImages({
+    const response = await getAiClient().models.generateImages({
         model: 'imagen-4.0-generate-001',
         prompt: prompt,
         config: {
@@ -463,12 +477,16 @@ export const generateImage = async (prompt: string, aspectRatio: string): Promis
     if (!image) {
         throw new Error("The AI did not generate an image.");
     }
+    // New check: Ensure the image string is not empty
+    if (image.trim().length === 0) {
+        throw new Error("The AI generated an empty image string.");
+    }
     return image;
 };
 
 
 export const groundedSearch = async (query: string): Promise<GroundedSearchResult> => {
-    const response = await ai.models.generateContent({
+    const response = await getAiClient().models.generateContent({
         model: "gemini-2.5-flash",
         contents: query,
         config: {
@@ -496,7 +514,7 @@ export const groundedSearch = async (query: string): Promise<GroundedSearchResul
 
 // --- CHAT SERVICE ---
 export const startChat = (): Chat => {
-    return ai.chats.create({
+    return getAiClient().chats.create({
         model: 'gemini-2.5-flash',
         config: {
             systemInstruction: "You are a friendly and helpful AI assistant for Artify AI, a photo editing application. You can answer questions about photo editing concepts, suggest creative ideas, or have a general conversation. Keep your answers concise and helpful."
